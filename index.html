@@ -769,7 +769,9 @@
   }
 
   function fetchXml(url) {
-    return fetch(url).then(function (res) {
+    // no-store: 브라우저가 프록시 응답(특히 일시적 오류)을 캐시해 계속 실패하는 것 방지.
+    // 중복 호출은 프록시(Cloudflare) 엣지 캐시가 처리한다.
+    return fetch(url, { cache: "no-store" }).then(function (res) {
       if (!res.ok) throw new Error("HTTP " + res.status);
       return res.text();
     }).then(function (text) {

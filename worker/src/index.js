@@ -106,7 +106,9 @@ export default {
     const bodyBuf = await res.arrayBuffer();
     const headers = corsHeaders(origin);
     headers["Content-Type"] = res.headers.get("Content-Type") || "application/xml; charset=utf-8";
-    headers["Cache-Control"] = "public, max-age=3600";
+    // 성공만 짧게 캐시 허용. 오류 응답은 브라우저가 저장하지 못하게 한다
+    // (예전에 브라우저가 522를 캐시해 계속 실패하던 문제 방지).
+    headers["Cache-Control"] = res.ok ? "public, max-age=300" : "no-store";
     return new Response(bodyBuf, { status: res.status, headers });
   },
 };
