@@ -1070,11 +1070,20 @@
 
   var selectedJeolgiName = null; // 2페이지에서 사용자가 고른 절기 (없으면 오늘 기준 자동 판별)
 
+  // 조회는 수십 초 걸린다. 그 사이 다른 절기를 고르거나 연도 토글을 누르면
+  // run()이 겹쳐 실행돼 이전 조회 결과가 뒤늦게 화면을 덮어쓴다.
+  // 매 실행에 토큰을 부여하고, 최신 실행이 아니면 화면을 건드리지 않는다.
+  var STALE = {};
+  var runToken = 0;
+
   function run() {
     if (!isProxyConfigured()) {
       setStatus(document.getElementById("mainStatus"), "코드 상단의 PROXY_BASE를 배포한 Worker 주소로 바꿔주세요.", true);
       return;
     }
+
+    var myToken = ++runToken;
+    function checkStale() { if (myToken !== runToken) throw STALE; }
 
     var mainStatus = document.getElementById("mainStatus");
     setStatus(mainStatus, "절기 정보를 확인하는 중…");
@@ -1087,6 +1096,7 @@
     // 1) 기준 절기 확인 — 2페이지에서 선택했으면 그 절기를, 아니면 오늘 기준으로 자동 판별
     get24Divisions(t.y)
       .then(function (items) {
+        checkStale();
         var today;
         if (selectedJeolgiName) {
           var picked = items.filter(function (it) { return it.name === selectedJeolgiName; })[0];
@@ -1103,18 +1113,21 @@
         for (var i = 1; i <= YEARS_BACK; i++) years.push(t.y - i);
 
         return mapLimit(years, 5, function (yr) { return get24Divisions(yr); }).then(function (yearsData) {
+          checkStale();
           var targets = yearsData.map(function (items, idx) {
             var match = items.filter(function (it) { return it.name === today.name; })[0];
             return { year: t.y - (idx + 1), date: match ? match.date : null };
           }).filter(function (x) { return x.date; });
 
           // 3) 각 날짜의 실제 기상 조회
+          checkStale();
           setStatus(mainStatus, "인천(112) 관측소의 과거 기상 데이터를 불러오는 중… (API " + targets.length + "회 호출)");
           return mapLimit(targets, 5, function (t2) {
             return getAsosDay(t2.date).then(function (w) {
               return { year: t2.year, date: t2.date, hit: judge(rule.type, w), weather: w };
             });
           }).then(function (results) {
+            checkStale();
             results.sort(function (a, b) { return a.year - b.year; });
             renderRate(results, rule.type);
             var elapsedSec = ((performance.now() - startedAt) / 1000).toFixed(1);
@@ -1125,16 +1138,19 @@
           });
         }).then(function () {
           // 4) 오늘의 운세 (서브)
+          checkStale();
           return getLunCal(t.y, t.m, t.day).then(function (lunar) {
+            checkStale();
             renderFortune(today.name, lunar);
           });
         });
       })
       .catch(function (err) {
+        if (err === STALE) return; // 더 최신 조회로 대체됨 — 화면 그대로 둔다
         setStatus(mainStatus, "오류가 발생했어요: " + err.message, true);
       })
       .then(function () {
-        setYearsToggleDisabled(false);
+        if (myToken === runToken) setYearsToggleDisabled(false);
       });
   }
 
