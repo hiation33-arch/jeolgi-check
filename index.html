@@ -155,17 +155,6 @@
     overflow: hidden;
   }
   .jeolgi-chip.on-dark { color: #fff; }
-  .jeolgi-chip .today-badge {
-    position: absolute;
-    top: 3px;
-    right: 3px;
-    background: rgba(255,255,255,0.85);
-    color: var(--ink-900);
-    font-size: 8.5px;
-    font-weight: 900;
-    padding: 1px 4px;
-    border-radius: 6px;
-  }
 
   /* ===== 상단 헤더 (절기별 그라디언트, 유리판처럼 떠 있는 카드) ===== */
   header {
@@ -678,28 +667,6 @@
   };
   var DEFAULT_GRADIENT = { from: "#4A5C8A", to: "#6B7FB0", light: false };
 
-  // 그리드의 "오늘" 배지 표시용 대략적 날짜(월,일) — 실제 데이터 계산에는 쓰이지 않음(장식용)
-  var APPROX_MD = {
-    "소한": [1,6], "대한": [1,20], "입춘": [2,4], "우수": [2,19],
-    "경칩": [3,6], "춘분": [3,21], "청명": [4,5], "곡우": [4,20],
-    "입하": [5,6], "소만": [5,21], "망종": [6,6], "하지": [6,21],
-    "소서": [7,7], "대서": [7,23], "입추": [8,8], "처서": [8,23],
-    "백로": [9,8], "추분": [9,23], "한로": [10,8], "상강": [10,23],
-    "입동": [11,7], "소설": [11,22], "대설": [12,7], "동지": [12,22]
-  };
-
-  function approxTodayJeolgiName() {
-    var now = new Date();
-    var mm = now.getMonth() + 1, dd = now.getDate();
-    var names = Object.keys(APPROX_MD);
-    var best = names[names.length - 1];
-    for (var i = 0; i < names.length; i++) {
-      var md = APPROX_MD[names[i]];
-      if (md[0] < mm || (md[0] === mm && md[1] <= dd)) best = names[i];
-    }
-    return best;
-  }
-
   // ===================================================================
   // 1. 유틸
   // ===================================================================
@@ -1176,7 +1143,6 @@
 
   function buildJeolgiGrid() {
     var grid = document.getElementById("jeolgiGrid");
-    var todayApprox = approxTodayJeolgiName();
     Object.keys(JEOLGI_GRADIENT).forEach(function (name) {
       var g = JEOLGI_GRADIENT[name];
       var btn = document.createElement("button");
@@ -1184,12 +1150,6 @@
       btn.className = "jeolgi-chip" + (g.light ? "" : " on-dark");
       btn.style.background = "linear-gradient(135deg, " + g.from + ", " + g.to + ")";
       btn.textContent = name;
-      if (name === todayApprox) {
-        var badge = document.createElement("span");
-        badge.className = "today-badge";
-        badge.textContent = "오늘";
-        btn.appendChild(badge);
-      }
       btn.addEventListener("click", function () {
         var errEl = document.getElementById("keyError");
         if (!isProxyConfigured()) {
