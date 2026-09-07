@@ -94,16 +94,13 @@ export default {
     if (!upstream.searchParams.has("_type")) upstream.searchParams.set("_type", "xml");
     upstream.searchParams.set("serviceKey", env.SERVICE_KEY);
 
-    let res;
-    try {
-      res = await fetch(upstream.toString(), {
-        method: "GET",
-        headers: { Accept: "application/xml" },
-        // 과거 데이터는 바뀌지 않으므로 엣지 캐시로 업스트림 호출 수를 줄인다
-        cf: { cacheTtl: 86400, cacheEverything: true },
-      });
-    } catch (e) {
-      return jsonResponse({ error: "Upstream fetch failed", detail: String(e) }, 502, origin);
+    // data.go.kr(B090041/1360000) 은 동시 요청이 몰리면 느려지거나
+    // Cloudflare↔origin 타임아웃(522)을 자주 낸다. 짧은 타임아웃 + 재시도로 흡수한다.
+    const upstreamUrl = upstream.toString();
+    const res = await fetchWithRetry(upstreamUrl, { attempts: 4, timeoutMs: 12000 });
+
+    if (!res) {
+      return jsonResponse({ error: "Upstream unavailable (retries exhausted)" }, 504, origin);
     }
 
     const bodyBuf = await res.arrayBuffer();
@@ -113,3 +110,34 @@ export default {
     return new Response(bodyBuf, { status: res.status, headers });
   },
 };
+
+// 성공(2xx) 또는 API 레벨 응답(4xx: 잘못된 파라미터/키 등)은 그대로 반환.
+// 네트워크 오류·타임아웃·5xx(502/503/504/522…) 는 재시도.
+async function fetchWithRetry(url, { attempts, timeoutMs }) {
+  let last = null;
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) await sleep(300 * 2 ** (i - 1) + Math.random() * 200); // 0.3s → 0.8s → 1.8s (+jitter)
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { Accept: "application/xml" },
+        signal: controller.signal,
+        // 과거 데이터는 바뀌지 않으므로 엣지 캐시로 업스트림 호출 수를 줄인다
+        cf: { cacheTtl: 86400, cacheEverything: true },
+      });
+      clearTimeout(timer);
+      if (res.status < 500) return res; // 2xx/3xx/4xx → 확정 응답
+      last = res; // 5xx → 재시도
+    } catch (_) {
+      clearTimeout(timer);
+      last = null; // abort/network → 재시도
+    }
+  }
+  return last;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
