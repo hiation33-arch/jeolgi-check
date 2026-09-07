@@ -1,8 +1,18 @@
 # 절기, 맞았을까?
 
+**바로가기 → https://hiation33-arch.github.io/jeolgi-check/**
+
 24절기가 실제 기상 데이터로 얼마나 "절기다웠는지" 보여주는 단일 페이지 웹앱.
 
-공공데이터포털 3개 API를 사용한다.
+## 이 앱이 하는 일
+
+- 24절기 중 하나를 고르면, 최근 10·20·30년간 인천(112) 관측소의 실제 기상값으로
+  그 절기가 "절기다웠는지" 적중률을 매겨 보여준다.
+  (예: *우수*는 그날 비가 왔는지, *대설*은 평균기온 5℃ 이하였는지)
+- 연도별 막대 차트에서 각 해의 실제 수치(강수량·기온)를 확인할 수 있다.
+- 함께 오늘의 절기·일진(간지) 기반 운세 문구를 보여준다.
+
+## 사용하는 공공데이터
 
 | 용도 | 서비스 |
 |---|---|
@@ -26,21 +36,20 @@ Worker 가 `wrangler secret` 으로 등록된 `SERVICE_KEY` 를 붙여 `apis.dat
 
 ## Worker 배포
 
-`worker/` 디렉터리에서:
+현재 배포됨: `https://jeolgi-check-proxy.hiation33.workers.dev` →
+`index.html` 의 `PROXY_BASE` 가 이 주소(`/api` 포함)를 가리킨다.
+
+코드/키를 바꿔 다시 배포할 때, `worker/` 디렉터리에서:
 
 ```bash
 npm install
-npx wrangler login
-npx wrangler secret put SERVICE_KEY   # 공공데이터포털 "일반 인증키(Decoding)" 붙여넣기
+npx wrangler login                    # 처음 한 번, 또는 토큰 만료 시
+npx wrangler secret put SERVICE_KEY   # 인증키 변경 시. 공공데이터포털 "일반 인증키(Decoding)"
 npx wrangler deploy
 ```
 
-배포되면 `https://jeolgi-check-proxy.<subdomain>.workers.dev` 주소가 나온다.
-그 주소를 `index.html` 상단 `PROXY_BASE` 에 `.../api` 형태로 넣는다:
-
-```js
-var PROXY_BASE = "https://jeolgi-check-proxy.<subdomain>.workers.dev/api";
-```
+인증키는 `wrangler secret` 으로만 등록하며 저장소에 커밋하지 않는다.
+Worker 주소를 바꿨다면 `index.html` 상단 `PROXY_BASE` 도 `.../api` 형태로 맞춘다.
 
 ### 엔드포인트
 
@@ -61,7 +70,15 @@ CORS 는 `https://hiation33-arch.github.io` 와 `localhost` 만 허용한다.
 ```bash
 # worker
 cd worker && npx wrangler dev            # http://localhost:8787
-
-# 프론트 (PROXY_BASE 를 http://localhost:8787/api 로 잠깐 바꾼 뒤)
-python -m http.server 5500
 ```
+```bash
+# 프론트 (PROXY_BASE 를 http://localhost:8787/api 로 잠깐 바꾼 뒤, 저장소 루트에서)
+python -m http.server 8000              # http://localhost:8000
+```
+
+## 참고
+
+- data.go.kr(특일·음양력 호스트)이 동시 요청에 느려 콜드 로드가 ~20초 걸릴 수 있다.
+  Worker가 타임아웃·재시도로 흡수하며, 한 번 조회한 절기는 엣지 캐시로 이후 빨라진다.
+- `robots.txt` + `<meta name="robots" content="noindex">` 로 검색 노출은 막았지만,
+  GitHub Pages 특성상 URL을 아는 사람은 접속할 수 있다(접근 제한 아님).
