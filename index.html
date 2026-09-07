@@ -467,47 +467,9 @@
   }
   .status-box.error { color: #B3261E; border-color: #F2CDCB; background: #FDF3F2; }
 
-  /* ===== 설정(API 키) ===== */
-  .config {
-    margin-top: 34px;
-    border-top: 1px solid var(--line);
-    padding-top: 20px;
-  }
-  .config summary {
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--muted);
-    font-weight: 700;
-  }
-  .config-body { margin-top: 14px; }
-  .field { margin-bottom: 12px; }
-  .field label {
-    display: block;
-    font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 5px;
-  }
-  .field input {
-    width: 100%;
-    padding: 9px 11px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    font-size: 13px;
-    font-family: 'Noto Sans KR', sans-serif;
-  }
-  .config button {
-    margin-top: 6px;
-    background: var(--ink-800);
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    padding: 10px 18px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-  }
+  /* ===== 절기 그리드 아래 안내 문구 ===== */
   .config-help {
-    margin-top: 10px;
+    margin-top: 18px;
     font-size: 11.5px;
     color: var(--muted);
     line-height: 1.6;
@@ -559,20 +521,10 @@
         <div class="section-sub">궁금한 절기를 고르면 최근 N년간 적중률을 보여드려요</div>
         <div class="jeolgi-grid" id="jeolgiGrid"></div>
         <div class="key-error" id="keyError"></div>
-      </div>
-
-      <details class="config">
-        <summary>고급 설정</summary>
-        <div class="config-body">
-          <div class="field">
-            <label for="testDate">오늘의 운세 기준 날짜 (선택 — 비워두면 실제 오늘)</label>
-            <input type="date" id="testDate">
-          </div>
-          <div class="config-help">
-            공공데이터포털 인증키는 이 페이지에 들어있지 않습니다. Cloudflare Worker 프록시가 서버 쪽에서 인증키를 붙여 API를 대신 호출하므로, 브라우저 개발자도구로 열어봐도 인증키는 보이지 않습니다.
-          </div>
+        <div class="config-help">
+          공공데이터포털 인증키는 이 페이지에 들어있지 않습니다. Cloudflare Worker 프록시가 서버 쪽에서 인증키를 붙여 API를 대신 호출하므로, 브라우저 개발자도구로 열어봐도 인증키는 보이지 않습니다.
         </div>
-      </details>
+      </div>
     </div>
   </div>
 
@@ -754,8 +706,7 @@
   function pad2(n) { return String(n).padStart(2, "0"); }
 
   function todayParts() {
-    var testVal = document.getElementById("testDate").value; // "YYYY-MM-DD" or ""
-    var d = testVal ? new Date(testVal + "T00:00:00") : new Date();
+    var d = new Date();
     return { y: d.getFullYear(), m: d.getMonth() + 1, day: d.getDate() };
   }
 
