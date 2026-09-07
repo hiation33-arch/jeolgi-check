@@ -1,0 +1,11 @@
+name = "jeolgi-check-proxy"
+main = "src/index.js"
+compatibility_date = "2026-09-07"
+workers_dev = true
+
+# 배포 순서
+#   1) wrangler login
+#   2) wrangler secret put SERVICE_KEY   ← 공공데이터포털 "일반 인증키(Decoding)" 붙여넣기
+#   3) wrangler deploy
+#
+# 인증키는 위 secret 으로만 등록하며 이 파일이나 코드에 절대 넣지 않는다.

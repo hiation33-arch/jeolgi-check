@@ -1,0 +1,14 @@
+{
+  "name": "jeolgi-check-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "공공데이터포털 API 프록시 (특일정보 / ASOS 일자료 / 음양력정보)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "secret": "wrangler secret put SERVICE_KEY"
+  },
+  "devDependencies": {
+    "wrangler": "^4.129.0"
+  }
+}

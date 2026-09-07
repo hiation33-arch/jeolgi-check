@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>절기, 맞았을까?</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+
+  :root {
+    --ink-900: #201D19;
+    --ink-800: #322E28;
+    --ink-700: #4A453C;
+    --paper: #FBFAF7;
+    --card: #FFFFFF;
+    --wash: #EEF0EA;
+    --ink: #24211D;
+    --muted: #837C70;
+    --line: #E7E3D8;
+    --el-wood: #5B7A55;
+    --el-fire: #C25B3F;
+    --el-earth: #B4863C;
+    --el-metal: #7C8494;
+    --el-water: #3F6C93;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Noto Sans KR', -apple-system, sans-serif;
+    background: #E4E2DC;
+    color: var(--ink);
+    line-height: 1.5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 36px 16px;
+  }
+
+  /* ===== 휴대폰처럼 보이는 프레임 (높이 고정, 내부 스크롤) ===== */
+  .phone {
+    width: 100%;
+    max-width: 412px;
+    height: min(844px, 92vh);
+    background: var(--paper);
+    border-radius: 36px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-shadow: 0 30px 60px rgba(30, 26, 20, 0.18), 0 2px 0 rgba(255,255,255,0.6) inset;
+    border: 1px solid #D8D4C8;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* 구형 Edge */
+  }
+  .phone::-webkit-scrollbar { display: none; } /* Chrome, Safari */
+
+  .wrap { padding: 0 20px 48px; }
+
+  /* ===== 화면 전환(스크린) ===== */
+  .screen { min-height: 100%; height: 100%; }
+  .screen[hidden] { display: none; }
+
+  .screen-pad {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 26px 20px 40px;
+  }
+  .select-center { margin: auto 0; }
+
+  .back-btn {
+    border: none;
+    background: var(--wash);
+    color: var(--ink-700);
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+  }
+  .back-btn.on-card { margin: 18px 0 6px; }
+
+  .key-error {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #B3261E;
+    min-height: 14px;
+  }
+
+  /* ===== SCREEN 1: 인트로 ===== */
+  .intro-screen {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(150deg, #8FCBE0, #E8D25A 80%);
+  }
+  .intro {
+    text-align: center;
+    padding: 40px 32px;
+    color: #26241F;
+  }
+  .intro-eyebrow {
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(38,36,31,0.65);
+  }
+  .intro-title {
+    margin-top: 14px;
+    font-family: 'Noto Serif KR', serif;
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 1.35;
+  }
+  .intro-desc {
+    margin-top: 18px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: rgba(38,36,31,0.75);
+  }
+  .cta-btn {
+    margin-top: 34px;
+    background: var(--ink-800);
+    color: #fff;
+    border: none;
+    padding: 14px 34px;
+    border-radius: 26px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 14px 26px rgba(0,0,0,0.18);
+  }
+
+  /* ===== SCREEN 2: 절기 선택 그리드 ===== */
+  .jeolgi-grid {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .jeolgi-chip {
+    position: relative;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 4px 9px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #26241F;
+    text-align: center;
+    overflow: hidden;
+  }
+  .jeolgi-chip.on-dark { color: #fff; }
+  .jeolgi-chip .today-badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    background: rgba(255,255,255,0.85);
+    color: var(--ink-900);
+    font-size: 8.5px;
+    font-weight: 900;
+    padding: 1px 4px;
+    border-radius: 6px;
+  }
+
+  /* ===== 상단 헤더 (절기별 그라디언트, 유리판처럼 떠 있는 카드) ===== */
+  header {
+    background: linear-gradient(160deg, #4A5C8A, #6B7FB0 75%); /* 기본값, JS가 절기에 맞게 교체 */
+    color: var(--hd-fg, #fff);
+    padding: 28px 18px 26px;
+    margin: 10px 10px 0;
+    border-radius: 24px;
+    box-shadow: 0 16px 34px rgba(20, 20, 15, 0.16), inset 0 1px 0 rgba(255,255,255,0.35);
+    border: 1px solid rgba(255,255,255,0.25);
+    transition: background 0.4s ease;
+  }
+
+  header .inner { max-width: 600px; margin: 0 auto; }
+
+  .eyebrow {
+    font-size: 13px;
+    color: var(--hd-fg-soft, rgba(255,255,255,0.72));
+    letter-spacing: 0.3px;
+  }
+
+  header h1 {
+    margin-top: 6px;
+    font-family: 'Noto Serif KR', serif;
+    font-size: 23px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--hd-fg, #fff);
+  }
+
+  .today-jeolgi {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--hd-fg, #fff);
+  }
+
+  .today-row {
+    margin-top: 16px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .today-date {
+    font-size: 14px;
+    color: var(--hd-fg-soft, rgba(255,255,255,0.75));
+  }
+
+  .today-desc {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--hd-fg-softer, rgba(255,255,255,0.85));
+  }
+
+  /* ===== 섹션 공통 ===== */
+  section { padding: 34px 0 0; }
+  .section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink-800);
+  }
+  .section-sub {
+    margin-top: 3px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .years-toggle {
+    margin-top: 14px;
+    display: inline-flex;
+    background: var(--wash);
+    border-radius: 20px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .years-toggle button {
+    border: none;
+    background: transparent;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    padding: 7px 16px;
+    border-radius: 16px;
+    cursor: pointer;
+  }
+  .years-toggle button.active {
+    background: var(--ink-800);
+    color: #fff;
+  }
+  .years-toggle button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* ===== 메인: 적중률 ===== */
+  .rate-card {
+    margin-top: 18px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 26px 22px;
+    box-shadow: 0 12px 28px rgba(60, 50, 30, 0.05);
+  }
+
+  .rate-top {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  /* ===== 보기 전환 토글 ===== */
+  .mode-toggle {
+    display: flex;
+    background: var(--wash);
+    border-radius: 20px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .mode-toggle button {
+    border: none;
+    background: transparent;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--muted);
+    padding: 6px 9px;
+    border-radius: 16px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .mode-toggle button.active {
+    background: var(--ink-800);
+    color: #fff;
+  }
+
+  .rate-num {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 67px;
+    font-weight: 900;
+    color: var(--ink-900);
+    line-height: 1;
+  }
+
+  .rate-num span { font-size: 31px; }
+
+  .rate-label {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .rate-fraction {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .rate-fraction-row {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .year-chart {
+    margin-top: 24px;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 120px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 4px;
+    overflow-x: auto;
+    position: relative;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .year-chart::-webkit-scrollbar { display: none; }
+
+  .year-bar-wrap {
+    flex: 1 0 auto;
+    min-width: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    gap: 6px;
+    cursor: pointer;
+  }
+
+  .year-mark {
+    width: 100%;
+    max-width: 26px;
+    border-radius: 5px 5px 2px 2px;
+    background: var(--line);
+    transition: transform 0.12s ease, opacity 0.12s ease;
+  }
+
+  .year-bar-wrap:hover .year-mark,
+  .year-bar-wrap.active .year-mark {
+    transform: scaleX(1.15);
+  }
+
+  .year-mark.hit { background: var(--ink-800); }
+  .year-mark.miss { background: #E3E0D5; }
+  .year-mark.value { background: var(--el-water); }
+
+  .chart-detail {
+    margin-top: 14px;
+    background: var(--wash);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 12.5px;
+    color: var(--ink-900);
+    min-height: 18px;
+  }
+  .chart-detail .cd-year { font-weight: 700; }
+  .chart-detail .cd-tag {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 10px;
+  }
+  .chart-detail .cd-tag.hit { background: var(--ink-800); color: #fff; }
+  .chart-detail .cd-tag.miss { background: #DEDBD0; color: #57534A; }
+  .chart-detail.placeholder { color: var(--muted); }
+
+  .year-labels {
+    margin-top: 8px;
+    display: flex;
+    gap: 3px;
+  }
+
+  .year-label {
+    flex: 1 0 auto;
+    min-width: 24px;
+    text-align: center;
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+
+  .rate-note {
+    margin-top: 18px;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ===== 서브: 오늘의 운세 ===== */
+  .fortune-card {
+    margin-top: 18px;
+    background: linear-gradient(165deg, var(--wash), #fff 65%);
+    border-radius: 22px;
+    padding: 24px;
+    border: 1px solid var(--line);
+  }
+
+  .fortune-line {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink-900);
+    line-height: 1.5;
+  }
+
+  .fortune-sub {
+    margin-top: 10px;
+    font-size: 13.5px;
+    color: var(--ink-700);
+    line-height: 1.6;
+  }
+
+  .ganji-tag {
+    display: inline-block;
+    margin-top: 14px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--el-water);
+    border-radius: 20px;
+    padding: 4px 12px;
+  }
+
+  /* ===== 상태 표시 ===== */
+  .status-box {
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--muted);
+    padding: 14px 16px;
+    border: 1px dashed var(--line);
+    border-radius: 14px;
+  }
+  .status-box.error { color: #B3261E; border-color: #F2CDCB; background: #FDF3F2; }
+
+  /* ===== 설정(API 키) ===== */
+  .config {
+    margin-top: 34px;
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+  }
+  .config summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .config-body { margin-top: 14px; }
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .field input {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 13px;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .config button {
+    margin-top: 6px;
+    background: var(--ink-800);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .config-help {
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  footer {
+    margin-top: 40px;
+    font-size: 11.5px;
+    color: #B0AA9C;
+    text-align: center;
+  }
+
+  /* ===== 실제 휴대폰 화면에서는 프레임 없이 꽉 차게 ===== */
+  @media (max-width: 480px) {
+    body { padding: 0; align-items: flex-start; }
+    .phone {
+      max-width: 100%;
+      height: auto;
+      min-height: 100vh;
+      border-radius: 0;
+      box-shadow: none;
+      border: none;
+      overflow-y: visible;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="phone">
+
+  <!-- ===== SCREEN 1: 인트로(후킹) ===== -->
+  <div class="screen intro-screen" id="screen1">
+    <div class="intro">
+      <div class="intro-eyebrow">절기, 맞았을까?</div>
+      <h1 class="intro-title">오늘의 절기와<br>기상 적중률은<br>얼마나 될까요?</h1>
+      <p class="intro-desc">최근 10~30년간의 실제 기상 데이터로<br>24절기가 정말 그 절기다웠는지 확인해봅니다</p>
+      <button type="button" class="cta-btn" id="toScreen2">시작하기</button>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN 2: 절기 선택 ===== -->
+  <div class="screen" id="screen2" hidden>
+    <div class="screen-pad">
+      <button type="button" class="back-btn" data-back="screen1">← 처음으로</button>
+
+      <div class="select-center">
+        <div class="section-title">절기를 선택하세요</div>
+        <div class="section-sub">궁금한 절기를 고르면 최근 N년간 적중률을 보여드려요</div>
+        <div class="jeolgi-grid" id="jeolgiGrid"></div>
+        <div class="key-error" id="keyError"></div>
+      </div>
+
+      <details class="config">
+        <summary>고급 설정</summary>
+        <div class="config-body">
+          <div class="field">
+            <label for="testDate">오늘의 운세 기준 날짜 (선택 — 비워두면 실제 오늘)</label>
+            <input type="date" id="testDate">
+          </div>
+          <div class="config-help">
+            공공데이터포털 인증키는 이 페이지에 들어있지 않습니다. Cloudflare Worker 프록시가 서버 쪽에서 인증키를 붙여 API를 대신 호출하므로, 브라우저 개발자도구로 열어봐도 인증키는 보이지 않습니다.
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN 3: 결과(도착 페이지) ===== -->
+  <div class="screen" id="screen3" hidden>
+
+    <header>
+      <div class="inner">
+        <div class="eyebrow">절기, 맞았을까?</div>
+        <h1>오늘의 절기와 기상 적중률</h1>
+        <div class="today-row">
+          <div class="today-jeolgi" id="todayJeolgi">—</div>
+          <div class="today-date" id="todayDate"></div>
+        </div>
+        <div class="today-desc" id="todayDesc"></div>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <button type="button" class="back-btn on-card" data-back="screen2">← 다른 절기 보기</button>
+
+      <!-- 메인: N년 적중률 -->
+      <section>
+        <div class="section-title">절기는 맞았을까</div>
+        <div class="section-sub">인천(112) 관측소 기준 실제 기상 데이터로 확인</div>
+
+        <div class="years-toggle" id="yearsToggle">
+          <button type="button" data-years="10" class="active">10년</button>
+          <button type="button" data-years="20">20년</button>
+          <button type="button" data-years="30">30년</button>
+        </div>
+
+        <div class="rate-card">
+          <div class="rate-top">
+            <div class="rate-num" id="rateNum">—<span>%</span></div>
+            <div class="rate-label" id="rateLabel">데이터를 불러오는 중…</div>
+          </div>
+          <div class="rate-fraction-row">
+            <div class="rate-fraction" id="rateFraction"></div>
+            <div class="mode-toggle" id="modeToggle">
+              <button type="button" data-mode="judge" class="active">적중 여부</button>
+              <button type="button" data-mode="value">실제 수치</button>
+            </div>
+          </div>
+
+          <div class="year-chart" id="yearChart"></div>
+          <div class="year-labels" id="yearLabels"></div>
+          <div class="chart-detail placeholder" id="chartDetail">막대를 눌러 그해의 실제 수치를 확인해보세요</div>
+
+          <div class="rate-note" id="rateNote"></div>
+        </div>
+
+        <div class="status-box" id="mainStatus">불러오는 중…</div>
+      </section>
+
+      <!-- 서브: 오늘의 운세 -->
+      <section>
+        <div class="section-title">오늘의 운세</div>
+        <div class="section-sub">절기와 일진(간지)을 함께 봅니다</div>
+
+        <div class="fortune-card">
+          <div class="fortune-line" id="fortuneLine">오늘의 운세를 준비하고 있어요…</div>
+          <div class="fortune-sub" id="fortuneSub"></div>
+          <span class="ganji-tag" id="ganjiTag" style="display:none;"></span>
+        </div>
+      </section>
+
+      <footer>AI교육 코디네이터 은미 · 사우고등학교</footer>
+    </div>
+  </div>
+
+</div><!-- /.phone -->
+
+<script>
+(function () {
+  "use strict";
+
+  // ===================================================================
+  // 0. 설정
+  // ===================================================================
+  // 실제 인증키는 프론트엔드에 두지 않는다. 아래 프록시(Cloudflare Worker)가
+  // 서버 쪽에서 인증키를 붙여 공공데이터포털 API를 대신 호출한다.
+  //   - 특일정보     → PROXY_BASE + "/spcde24"
+  //   - ASOS 일자료  → PROXY_BASE + "/asos"
+  //   - 음양력정보   → PROXY_BASE + "/luncal"
+  // 배포한 Worker 주소로 교체할 것 (끝에 "/api" 포함, 슬래시 없이).
+  var PROXY_BASE = "https://jeolgi-check-proxy.__WORKERS_SUBDOMAIN__.workers.dev/api";
+
+  function isProxyConfigured() {
+    return PROXY_BASE.indexOf("__WORKERS_SUBDOMAIN__") === -1;
+  }
+
+  var STN_ID = "112"; // 인천 — 김포와 가장 가까운 ASOS 관측소
+  var YEARS_BACK = 10; // 버튼으로 10/20/30 전환 가능 (아래 이벤트 리스너 참고)
+
+  // 24절기 판정 기준표
+  // type: 'rain'(비) · 'cold'(추위) · 'hot'(더위) · 'thaw'(해빙/포근함) · 'observe'(판정 없이 참고만)
+  var JEOLGI_RULE = {
+    "소한": { type: "cold", desc: "한 해 중 가장 추운 시기로 통합니다" },
+    "대한": { type: "cold", desc: "혹독한 추위가 절정에 이르는 시기입니다" },
+    "입춘": { type: "thaw", desc: "봄의 기운이 시작된다고 여기는 절기입니다" },
+    "우수": { type: "rain", desc: "눈 대신 비가 내리기 시작한다는 절기입니다" },
+    "경칩": { type: "thaw", desc: "겨울잠 자던 벌레가 깨어난다는 절기입니다" },
+    "춘분": { type: "observe", desc: "낮과 밤의 길이가 같아지는 날입니다" },
+    "청명": { type: "observe", desc: "날씨가 맑고 밝아진다는 절기입니다" },
+    "곡우": { type: "rain", desc: "농사에 필요한 비가 내린다는 절기입니다" },
+    "입하": { type: "hot", desc: "여름 기운이 시작된다고 여기는 절기입니다" },
+    "소만": { type: "hot", desc: "본격적인 더위가 다가오는 시기입니다" },
+    "망종": { type: "rain", desc: "보리 수확과 모내기, 장마철이 가까운 시기입니다" },
+    "하지": { type: "hot", desc: "낮이 가장 긴 날로, 더위가 본격화됩니다" },
+    "소서": { type: "hot", desc: "더위가 본격적으로 시작된다는 절기입니다" },
+    "대서": { type: "hot", desc: "한 해 중 가장 더운 시기로 통합니다" },
+    "입추": { type: "observe", desc: "가을 기운이 시작된다고 여기는 절기입니다" },
+    "처서": { type: "observe", desc: "더위가 한풀 꺾인다는 절기입니다" },
+    "백로": { type: "observe", desc: "이슬이 맺히기 시작한다는 절기입니다" },
+    "추분": { type: "observe", desc: "낮과 밤의 길이가 같아지는 날입니다" },
+    "한로": { type: "cold", desc: "찬 이슬이 맺히기 시작한다는 절기입니다" },
+    "상강": { type: "cold", desc: "서리가 내리기 시작한다는 절기입니다" },
+    "입동": { type: "cold", desc: "겨울 기운이 시작된다고 여기는 절기입니다" },
+    "소설": { type: "cold", desc: "첫눈이 내리기 시작한다는 절기입니다" },
+    "대설": { type: "cold", desc: "눈이 많이 내린다는 절기입니다" },
+    "동지": { type: "cold", desc: "밤이 가장 긴 날로, 추위가 깊어집니다" }
+  };
+
+  // 절기별 계절 그라디언트 (헤더 배경) — light: 밝은 배경이라 어두운 글자를 써야 하는지 여부
+  var JEOLGI_GRADIENT = {
+    "소한": { from: "#2E3A59", to: "#4A5C8A", light: false },
+    "대한": { from: "#24304A", to: "#3E4E78", light: false },
+    "입춘": { from: "#8FAE86", to: "#E7DDB0", light: true },
+    "우수": { from: "#7FA6B0", to: "#C9DCC6", light: true },
+    "경칩": { from: "#6FAE6A", to: "#D8E6A0", light: true },
+    "춘분": { from: "#E3D3A8", to: "#B9D2CC", light: true },
+    "청명": { from: "#8FCBE0", to: "#EAF2C8", light: true },
+    "곡우": { from: "#6E9BAE", to: "#BFDAB8", light: true },
+    "입하": { from: "#4FAE93", to: "#D8E48A", light: true },
+    "소만": { from: "#8CC152", to: "#E8D25A", light: true },
+    "망종": { from: "#5B9E7C", to: "#C7D65E", light: true },
+    "하지": { from: "#2E8FA8", to: "#F2C84B", light: true },
+    "소서": { from: "#E0A93E", to: "#F0784A", light: false },
+    "대서": { from: "#D9622F", to: "#F2A23E", light: false },
+    "입추": { from: "#C98A3E", to: "#E8C97A", light: true },
+    "처서": { from: "#B78B4E", to: "#E4D2A0", light: true },
+    "백로": { from: "#7D96A0", to: "#D9E2D6", light: true },
+    "추분": { from: "#A8794A", to: "#D9C79A", light: true },
+    "한로": { from: "#7A5C3E", to: "#C79B5E", light: false },
+    "상강": { from: "#5E5647", to: "#A88C5E", light: false },
+    "입동": { from: "#3E4A5E", to: "#6E7A8C", light: false },
+    "소설": { from: "#3A4560", to: "#8395AE", light: false },
+    "대설": { from: "#2C3550", to: "#5A6B8C", light: false },
+    "동지": { from: "#1F2740", to: "#3E4A6E", light: false }
+  };
+  var DEFAULT_GRADIENT = { from: "#4A5C8A", to: "#6B7FB0", light: false };
+
+  // 그리드의 "오늘" 배지 표시용 대략적 날짜(월,일) — 실제 데이터 계산에는 쓰이지 않음(장식용)
+  var APPROX_MD = {
+    "소한": [1,6], "대한": [1,20], "입춘": [2,4], "우수": [2,19],
+    "경칩": [3,6], "춘분": [3,21], "청명": [4,5], "곡우": [4,20],
+    "입하": [5,6], "소만": [5,21], "망종": [6,6], "하지": [6,21],
+    "소서": [7,7], "대서": [7,23], "입추": [8,8], "처서": [8,23],
+    "백로": [9,8], "추분": [9,23], "한로": [10,8], "상강": [10,23],
+    "입동": [11,7], "소설": [11,22], "대설": [12,7], "동지": [12,22]
+  };
+
+  function approxTodayJeolgiName() {
+    var now = new Date();
+    var mm = now.getMonth() + 1, dd = now.getDate();
+    var names = Object.keys(APPROX_MD);
+    var best = names[names.length - 1];
+    for (var i = 0; i < names.length; i++) {
+      var md = APPROX_MD[names[i]];
+      if (md[0] < mm || (md[0] === mm && md[1] <= dd)) best = names[i];
+    }
+    return best;
+  }
+
+  // ===================================================================
+  // 1. 유틸
+  // ===================================================================
+  function pad2(n) { return String(n).padStart(2, "0"); }
+
+  function todayParts() {
+    var testVal = document.getElementById("testDate").value; // "YYYY-MM-DD" or ""
+    var d = testVal ? new Date(testVal + "T00:00:00") : new Date();
+    return { y: d.getFullYear(), m: d.getMonth() + 1, day: d.getDate() };
+  }
+
+  function ymdToDate(ymd) {
+    // "20260420" -> Date
+    return new Date(
+      parseInt(ymd.slice(0, 4), 10),
+      parseInt(ymd.slice(4, 6), 10) - 1,
+      parseInt(ymd.slice(6, 8), 10)
+    );
+  }
+
+  function fetchXml(url) {
+    return fetch(url).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.text();
+    }).then(function (text) {
+      var xml = new DOMParser().parseFromString(text, "text/xml");
+      var parseErr = xml.querySelector("parsererror");
+      if (parseErr) throw new Error("XML 파싱 실패");
+      var resultCode = xml.querySelector("resultCode");
+      if (resultCode && resultCode.textContent !== "00") {
+        var msg = xml.querySelector("resultMsg");
+        throw new Error("API 오류: " + (msg ? msg.textContent : resultCode.textContent));
+      }
+      return xml;
+    });
+  }
+
+  function setStatus(el, text, isError) {
+    el.textContent = text;
+    el.className = "status-box" + (isError ? " error" : "");
+  }
+
+  // ===================================================================
+  // 2. API 호출 함수
+  // ===================================================================
+
+  // 특일정보 — 24절기 목록 (연도 전체)
+  function get24Divisions(year) {
+    var url = PROXY_BASE + "/spcde24"
+      + "?solYear=" + year
+      + "&numOfRows=30"
+      + "&_type=xml";
+    return fetchXml(url).then(function (xml) {
+      var items = Array.prototype.slice.call(xml.querySelectorAll("item"));
+      return items.map(function (item) {
+        return {
+          name: item.querySelector("dateName").textContent,
+          date: item.querySelector("locdate").textContent // YYYYMMDD
+        };
+      });
+    });
+  }
+
+  // ASOS 일자료 — 특정 날짜 하루치
+  function getAsosDay(ymd) {
+    var url = PROXY_BASE + "/asos"
+      + "?dataCd=ASOS&dateCd=DAY"
+      + "&stnIds=" + STN_ID
+      + "&startDt=" + ymd + "&endDt=" + ymd
+      + "&numOfRows=10&pageNo=1"
+      + "&_type=xml";
+    return fetchXml(url).then(function (xml) {
+      var item = xml.querySelector("item");
+      if (!item) return null;
+      function val(tag) {
+        var el = item.querySelector(tag);
+        return el ? el.textContent.trim() : "";
+      }
+      return {
+        avgTa: val("avgTa") === "" ? null : parseFloat(val("avgTa")),
+        minTa: val("minTa") === "" ? null : parseFloat(val("minTa")),
+        maxTa: val("maxTa") === "" ? null : parseFloat(val("maxTa")),
+        sumRn: val("sumRn") === "" ? 0 : parseFloat(val("sumRn")) // 빈 값 = 강수 없음
+      };
+    });
+  }
+
+  // 음양력정보 — 오늘의 일진
+  function getLunCal(y, m, d) {
+    var url = PROXY_BASE + "/luncal"
+      + "?solYear=" + y + "&solMonth=" + pad2(m) + "&solDay=" + pad2(d)
+      + "&_type=xml";
+    return fetchXml(url).then(function (xml) {
+      var item = xml.querySelector("item");
+      if (!item) return null;
+      function val(tag) {
+        var el = item.querySelector(tag);
+        return el ? el.textContent.trim() : "";
+      }
+      return {
+        lunIljin: val("lunIljin"),
+        lunSecha: val("lunSecha"),
+        lunWolgeon: val("lunWolgeon")
+      };
+    });
+  }
+
+  // ===================================================================
+  // 3. 판정 로직
+  // ===================================================================
+  function judge(type, weather) {
+    if (!weather) return null; // 데이터 없음 = 판정 불가
+    switch (type) {
+      case "rain":
+        return weather.sumRn > 0;
+      case "cold":
+        return weather.avgTa !== null && weather.avgTa <= 5;
+      case "hot":
+        return weather.avgTa !== null && weather.avgTa >= 25;
+      case "thaw":
+        return weather.minTa !== null && weather.minTa > 0;
+      default:
+        return null; // observe 타입은 적중률 집계에서 제외
+    }
+  }
+
+  // 유형별로 "실제 수치" 모드에서 어떤 값을 보여줄지
+  function getValueInfo(type, weather) {
+    if (!weather) return null;
+    switch (type) {
+      case "rain": return { value: weather.sumRn, unit: "mm", label: "강수량" };
+      case "cold": return { value: weather.avgTa, unit: "℃", label: "평균기온" };
+      case "hot": return { value: weather.avgTa, unit: "℃", label: "평균기온" };
+      case "thaw": return { value: weather.minTa, unit: "℃", label: "최저기온" };
+      default: return { value: weather.avgTa, unit: "℃", label: "평균기온(참고)" };
+    }
+  }
+
+  // 절기별 감성 운세 멘트
+  var JEOLGI_FORTUNE = {
+    "소한": "매서운 추위 속에서도 마음만은 데워지는 하루",
+    "대한": "한 해의 마지막 추위, 버텨낸 나에게 박수를",
+    "입춘": "봄기운이 문틈으로 슬쩍 들어오는 하루",
+    "우수": "얼었던 마음도 사르르 녹아내리는 하루",
+    "경칩": "웅크렸던 마음을 기지개 켜듯 펴보는 하루",
+    "춘분": "낮과 밤이 똑같이 나뉘듯 균형 잡힌 하루",
+    "청명": "맑고 밝은 기운이 마음까지 씻어주는 하루",
+    "곡우": "촉촉하게 젖어드는, 은근한 설렘의 하루",
+    "입하": "여름의 문턱, 활기가 차오르는 하루",
+    "소만": "가득 채워지기 직전의 기분 좋은 긴장감",
+    "망종": "씨 뿌린 만큼 거두는, 결실을 준비하는 하루",
+    "하지": "해가 가장 긴 날, 하고 싶은 걸 미루지 마세요",
+    "소서": "더위의 시작, 여유를 잃지 않는 하루",
+    "대서": "가장 뜨거운 날, 열정도 가장 뜨겁게",
+    "입추": "선선한 바람 한 줄기가 스치는 하루",
+    "처서": "더위가 꺾이듯, 묵은 걱정도 한풀 꺾이길",
+    "백로": "이슬처럼 맑고 투명한 마음가짐의 하루",
+    "추분": "다시 균형을 찾는, 차분한 하루",
+    "한로": "찬 이슬에 옷깃을 여미듯, 마음도 단정히",
+    "상강": "서리 내리듯 차분하게 정리하는 하루",
+    "입동": "겨울의 문턱, 마음을 단단히 여미는 하루",
+    "소설": "첫눈처럼 설레는 소식이 있을지도 몰라요",
+    "대설": "눈 쌓이듯 차곡차곡 쌓아가는 하루",
+    "동지": "밤이 가장 긴 날, 내일을 기다리는 하루"
+  };
+
+  // 천간(한자) → 오행 → 기운 문구 → 접근성 색상 CSS 변수명
+  var STEM_ELEMENT = {
+    "甲": ["木", "성장과 시작의 기운", "--el-wood"], "乙": ["木", "성장과 시작의 기운", "--el-wood"],
+    "丙": ["火", "열정과 활력의 기운", "--el-fire"], "丁": ["火", "열정과 활력의 기운", "--el-fire"],
+    "戊": ["土", "안정과 중심의 기운", "--el-earth"], "己": ["土", "안정과 중심의 기운", "--el-earth"],
+    "庚": ["金", "결단과 정리의 기운", "--el-metal"], "辛": ["金", "결단과 정리의 기운", "--el-metal"],
+    "壬": ["水", "지혜와 유연함의 기운", "--el-water"], "癸": ["水", "지혜와 유연함의 기운", "--el-water"]
+  };
+
+  function getElementInfo(lunIljin) {
+    var m = lunIljin.match(/\(([\u4e00-\u9fff])/);
+    if (!m) return null;
+    var stem = STEM_ELEMENT[m[1]];
+    return stem ? { symbol: stem[0], phrase: stem[1], colorVar: stem[2] } : null;
+  }
+
+  function pickFortuneLine(jeolgiName) {
+    return JEOLGI_FORTUNE[jeolgiName] || "오늘의 흐름을 가만히 느껴보는 하루";
+  }
+
+  // ===================================================================
+  // 4. 렌더링
+  // ===================================================================
+  var chartState = { results: [], type: "observe", mode: "judge" };
+
+  var NOTE_MAP = {
+    rain: "판정 기준: 그날 강수량이 0mm보다 크면 적중으로 봤어요.",
+    cold: "판정 기준: 그날 평균기온이 5℃ 이하이면 적중으로 봤어요.",
+    hot: "판정 기준: 그날 평균기온이 25℃ 이상이면 적중으로 봤어요.",
+    thaw: "판정 기준: 그날 최저기온이 0℃보다 높으면 적중으로 봤어요.",
+    observe: "이 절기는 계절의 전환점을 뜻할 뿐, 뚜렷한 날씨 특성이 정해져 있지 않아 적중률을 매기지 않았어요."
+  };
+
+  function renderToday(name, ymd, rule) {
+    var d = ymdToDate(ymd);
+    document.getElementById("todayJeolgi").textContent = name;
+    document.getElementById("todayDate").textContent =
+      d.getFullYear() + "년 " + (d.getMonth() + 1) + "월 " + d.getDate() + "일";
+    document.getElementById("todayDesc").textContent = rule ? rule.desc : "";
+
+    // 절기별 계절 그라디언트를 헤더에 적용
+    var grad = JEOLGI_GRADIENT[name] || DEFAULT_GRADIENT;
+    var header = document.querySelector("header");
+    header.style.background = "linear-gradient(160deg, " + grad.from + ", " + grad.to + " 75%)";
+    if (grad.light) {
+      header.style.setProperty("--hd-fg", "#26241F");
+      header.style.setProperty("--hd-fg-soft", "rgba(38,36,31,0.62)");
+      header.style.setProperty("--hd-fg-softer", "rgba(38,36,31,0.78)");
+    } else {
+      header.style.setProperty("--hd-fg", "#FFFFFF");
+      header.style.setProperty("--hd-fg-soft", "rgba(255,255,255,0.72)");
+      header.style.setProperty("--hd-fg-softer", "rgba(255,255,255,0.85)");
+    }
+  }
+
+  function renderRate(results, type) {
+    chartState.results = results;
+    chartState.type = type;
+
+    var valid = results.filter(function (r) { return r.hit !== null; });
+    var hits = valid.filter(function (r) { return r.hit; }).length;
+    var pct = valid.length ? Math.round((hits / valid.length) * 100) : 0;
+
+    document.getElementById("rateNum").innerHTML = pct + "<span>%</span>";
+    document.getElementById("rateLabel").textContent =
+      type === "observe" ? "이 절기는 판정 기준이 없는 절기예요" : (YEARS_BACK + "년 중 실제로 절기다웠던 비율");
+    document.getElementById("rateFraction").textContent =
+      valid.length ? valid.length + "개년 중 " + hits + "개년 적중" : "";
+    document.getElementById("rateNote").textContent = NOTE_MAP[type] || "";
+
+    renderChart();
+  }
+
+  function renderChart() {
+    var results = chartState.results;
+    var type = chartState.type;
+    var mode = chartState.mode;
+    var vi = type === "rain" ? { unit: "mm", label: "강수량" }
+      : type === "thaw" ? { unit: "℃", label: "최저기온" }
+      : { unit: "℃", label: "평균기온" };
+
+    var values = results.map(function (r) {
+      if (!r.weather) return null;
+      var info = getValueInfo(type, r.weather);
+      return info ? info.value : null;
+    });
+    var numeric = values.filter(function (v) { return v !== null && !isNaN(v); });
+    var maxAbs = numeric.length ? Math.max.apply(null, numeric.map(Math.abs), 0.1) : 1;
+
+    var chart = document.getElementById("yearChart");
+    var labels = document.getElementById("yearLabels");
+    var detail = document.getElementById("chartDetail");
+
+    chart.innerHTML = "";
+    labels.innerHTML = "";
+    detail.textContent = "막대를 눌러 그해의 실제 수치를 확인해보세요";
+    detail.className = "chart-detail placeholder";
+
+    results.forEach(function (r, idx) {
+      var wrap = document.createElement("div");
+      wrap.className = "year-bar-wrap";
+
+      var bar = document.createElement("div");
+      var val = values[idx];
+
+      if (mode === "judge") {
+        bar.className = "year-mark " + (r.hit === true ? "hit" : r.hit === false ? "miss" : "");
+        bar.style.height = r.hit === null ? "6px" : (r.hit ? "100%" : "34%");
+      } else {
+        bar.className = "year-mark value";
+        var h = (val === null || isNaN(val)) ? 6 : Math.max(6, Math.round((Math.abs(val) / maxAbs) * 100));
+        bar.style.height = h + "%";
+      }
+
+      wrap.appendChild(bar);
+      chart.appendChild(wrap);
+
+      var lab = document.createElement("div");
+      lab.className = "year-label";
+      lab.textContent = String(r.year).slice(2);
+      labels.appendChild(lab);
+
+      function showDetail() {
+        Array.prototype.slice.call(chart.querySelectorAll(".year-bar-wrap")).forEach(function (el) {
+          el.classList.remove("active");
+        });
+        wrap.classList.add("active");
+
+        var dateStr = r.date ? (r.date.slice(0, 4) + "." + r.date.slice(4, 6) + "." + r.date.slice(6, 8)) : "-";
+        var valText = (val === null || val === undefined || isNaN(val)) ? "데이터 없음" : (val + vi.unit);
+        var hitLabel = r.hit === true ? "적중" : r.hit === false ? "불일치" : "참고";
+        var hitClass = r.hit === true ? "hit" : r.hit === false ? "miss" : "";
+
+        detail.className = "chart-detail";
+        detail.innerHTML =
+          '<span class="cd-year">' + r.year + "년 (" + dateStr + ")</span> · " +
+          vi.label + " " + valText +
+          '<span class="cd-tag ' + hitClass + '">' + hitLabel + "</span>";
+      }
+
+      wrap.addEventListener("mouseenter", showDetail);
+      wrap.addEventListener("click", showDetail);
+    });
+  }
+
+  function renderFortune(jeolgiName, lunar) {
+    if (!lunar) {
+      document.getElementById("fortuneLine").textContent = "오늘의 운세를 불러오지 못했어요.";
+      return;
+    }
+    document.getElementById("fortuneLine").textContent = pickFortuneLine(jeolgiName);
+
+    var el = getElementInfo(lunar.lunIljin);
+    var sub = jeolgiName + " · " + lunar.lunIljin + "일. ";
+    sub += el ? "오늘은 " + el.phrase + "이 함께해요." : "";
+    document.getElementById("fortuneSub").textContent = sub;
+
+    var tag = document.getElementById("ganjiTag");
+    var elColor = el ? getComputedStyle(document.documentElement).getPropertyValue(el.colorVar).trim() : "";
+    tag.textContent = (el ? el.symbol + " · " : "") + "년주 " + lunar.lunSecha + " · 월주 " + lunar.lunWolgeon;
+    if (elColor) tag.style.background = elColor;
+    tag.style.display = "inline-block";
+  }
+
+  // ===================================================================
+  // 5. 메인 흐름
+  // ===================================================================
+  function findTodayJeolgi(items, refDate) {
+    var ref = new Date(refDate);
+    ref.setHours(0, 0, 0, 0);
+    var past = items
+      .map(function (it) { return { name: it.name, date: it.date, dateObj: ymdToDate(it.date) }; })
+      .filter(function (it) { return it.dateObj <= ref; })
+      .sort(function (a, b) { return b.dateObj - a.dateObj; });
+    return past.length ? past[0] : items[0];
+  }
+
+  function setYearsToggleDisabled(disabled) {
+    Array.prototype.slice.call(document.querySelectorAll("#yearsToggle button")).forEach(function (b) {
+      b.disabled = disabled;
+    });
+  }
+
+  var selectedJeolgiName = null; // 2페이지에서 사용자가 고른 절기 (없으면 오늘 기준 자동 판별)
+
+  function run() {
+    if (!isProxyConfigured()) {
+      setStatus(document.getElementById("mainStatus"), "코드 상단의 PROXY_BASE를 배포한 Worker 주소로 바꿔주세요.", true);
+      return;
+    }
+
+    var mainStatus = document.getElementById("mainStatus");
+    setStatus(mainStatus, "절기 정보를 확인하는 중…");
+    setYearsToggleDisabled(true);
+    var startedAt = performance.now();
+
+    var t = todayParts();
+    var refDate = new Date(t.y, t.m - 1, t.day);
+
+    // 1) 기준 절기 확인 — 2페이지에서 선택했으면 그 절기를, 아니면 오늘 기준으로 자동 판별
+    get24Divisions(t.y)
+      .then(function (items) {
+        var today;
+        if (selectedJeolgiName) {
+          var picked = items.filter(function (it) { return it.name === selectedJeolgiName; })[0];
+          today = picked || findTodayJeolgi(items, refDate);
+        } else {
+          today = findTodayJeolgi(items, refDate);
+        }
+        var rule = JEOLGI_RULE[today.name] || { type: "observe", desc: "" };
+        renderToday(today.name, today.date, rule);
+
+        // 2) 최근 N개년 같은 절기 날짜 수집
+        setStatus(mainStatus, "최근 " + YEARS_BACK + "년간 " + today.name + " 날짜를 확인하는 중… (API " + YEARS_BACK + "회 호출)");
+        var yearPromises = [];
+        for (var i = 1; i <= YEARS_BACK; i++) {
+          yearPromises.push(get24Divisions(t.y - i));
+        }
+
+        return Promise.all(yearPromises).then(function (yearsData) {
+          var targets = yearsData.map(function (items, idx) {
+            var match = items.filter(function (it) { return it.name === today.name; })[0];
+            return { year: t.y - (idx + 1), date: match ? match.date : null };
+          }).filter(function (x) { return x.date; });
+
+          // 3) 각 날짜의 실제 기상 조회
+          setStatus(mainStatus, "인천(112) 관측소의 과거 기상 데이터를 불러오는 중… (API " + targets.length + "회 호출)");
+          var weatherPromises = targets.map(function (t2) {
+            return getAsosDay(t2.date).then(function (w) {
+              return { year: t2.year, date: t2.date, hit: judge(rule.type, w), weather: w };
+            });
+          });
+
+          return Promise.all(weatherPromises).then(function (results) {
+            results.sort(function (a, b) { return a.year - b.year; });
+            renderRate(results, rule.type);
+            var elapsedSec = ((performance.now() - startedAt) / 1000).toFixed(1);
+            var totalCalls = 1 + YEARS_BACK + targets.length + 1; // 오늘절기1 + 연도별절기N + 기상N + 음양력1
+            setStatus(mainStatus,
+              "불러오기 완료 (" + today.name + " 기준, 인천 112 관측소) · " + YEARS_BACK + "년 기준 · "
+              + "API " + totalCalls + "회 호출 · " + elapsedSec + "초 소요");
+          });
+        }).then(function () {
+          // 4) 오늘의 운세 (서브)
+          return getLunCal(t.y, t.m, t.day).then(function (lunar) {
+            renderFortune(today.name, lunar);
+          });
+        });
+      })
+      .catch(function (err) {
+        setStatus(mainStatus, "오류가 발생했어요: " + err.message, true);
+      })
+      .then(function () {
+        setYearsToggleDisabled(false);
+      });
+  }
+
+  // ===================================================================
+  // 6. 화면 전환 (screen1 인트로 → screen2 절기선택 → screen3 결과)
+  // ===================================================================
+  function showScreen(id) {
+    Array.prototype.slice.call(document.querySelectorAll(".screen")).forEach(function (s) {
+      s.hidden = (s.id !== id);
+    });
+    document.querySelector(".phone").scrollTop = 0;
+  }
+
+  function buildJeolgiGrid() {
+    var grid = document.getElementById("jeolgiGrid");
+    var todayApprox = approxTodayJeolgiName();
+    Object.keys(JEOLGI_GRADIENT).forEach(function (name) {
+      var g = JEOLGI_GRADIENT[name];
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "jeolgi-chip" + (g.light ? "" : " on-dark");
+      btn.style.background = "linear-gradient(135deg, " + g.from + ", " + g.to + ")";
+      btn.textContent = name;
+      if (name === todayApprox) {
+        var badge = document.createElement("span");
+        badge.className = "today-badge";
+        badge.textContent = "오늘";
+        btn.appendChild(badge);
+      }
+      btn.addEventListener("click", function () {
+        var errEl = document.getElementById("keyError");
+        if (!isProxyConfigured()) {
+          errEl.textContent = "코드 상단의 PROXY_BASE를 배포한 Worker 주소로 바꿔주세요.";
+          return;
+        }
+        errEl.textContent = "";
+        selectedJeolgiName = name;
+        showScreen("screen3");
+        run();
+      });
+      grid.appendChild(btn);
+    });
+  }
+  buildJeolgiGrid();
+
+  document.getElementById("toScreen2").addEventListener("click", function () {
+    showScreen("screen2");
+  });
+
+  Array.prototype.slice.call(document.querySelectorAll(".back-btn[data-back]")).forEach(function (b) {
+    b.addEventListener("click", function () {
+      showScreen(b.getAttribute("data-back"));
+    });
+  });
+
+  document.getElementById("modeToggle").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-mode]");
+    if (!btn) return;
+    chartState.mode = btn.getAttribute("data-mode");
+    Array.prototype.slice.call(document.querySelectorAll("#modeToggle button")).forEach(function (b) {
+      b.classList.toggle("active", b === btn);
+    });
+    renderChart();
+  });
+
+  document.getElementById("yearsToggle").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-years]");
+    if (!btn || btn.disabled) return;
+    YEARS_BACK = parseInt(btn.getAttribute("data-years"), 10);
+    Array.prototype.slice.call(document.querySelectorAll("#yearsToggle button")).forEach(function (b) {
+      b.classList.toggle("active", b === btn);
+    });
+    // 프록시가 설정돼 있고, 이미 한 번 조회한 상태면 바로 다시 불러와서 비교해볼 수 있게 함
+    if (isProxyConfigured() && selectedJeolgiName) run();
+  });
+})();
+</script>
+
+</body>
+</html>
