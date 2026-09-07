@@ -948,9 +948,19 @@
     var hits = valid.filter(function (r) { return r.hit; }).length;
     var pct = valid.length ? Math.round((hits / valid.length) * 100) : 0;
 
-    document.getElementById("rateNum").innerHTML = pct + "<span>%</span>";
-    document.getElementById("rateLabel").textContent =
-      type === "observe" ? "이 절기는 판정 기준이 없는 절기예요" : (YEARS_BACK + "년 중 실제로 절기다웠던 비율");
+    var rateLabel;
+    if (type === "observe") {
+      rateLabel = "이 절기는 판정 기준이 없는 절기예요";
+    } else if (valid.length === 0) {
+      rateLabel = "기상 데이터를 불러오지 못했어요";
+    } else {
+      rateLabel = YEARS_BACK + "년 중 실제로 절기다웠던 비율";
+    }
+
+    // 판정이 안 되는 경우(관측형 절기 / 데이터 없음)는 "0%" 대신 "—"
+    document.getElementById("rateNum").innerHTML =
+      (type === "observe" || valid.length === 0) ? "—" : (pct + "<span>%</span>");
+    document.getElementById("rateLabel").textContent = rateLabel;
     document.getElementById("rateFraction").textContent =
       valid.length ? valid.length + "개년 중 " + hits + "개년 적중" : "";
     document.getElementById("rateNote").textContent = NOTE_MAP[type] || "";
