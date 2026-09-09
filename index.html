@@ -410,6 +410,54 @@
     line-height: 1.6;
   }
 
+  /* 실제 수치 차트의 평년값 기준선 */
+  .normal-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1.5px dashed var(--el-fire);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .normal-line span {
+    position: absolute;
+    right: 0;
+    top: -7px;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--el-fire);
+    background: var(--card);
+    padding: 0 4px;
+  }
+
+  /* 낮 길이 절기: 적중 막대 대신 낮 길이만 */
+  .rate-card.is-daylength .mode-toggle,
+  .rate-card.is-daylength .year-chart,
+  .rate-card.is-daylength .year-labels,
+  .rate-card.is-daylength .chart-detail { display: none; }
+  .rate-num.daylength { font-size: 40px; letter-spacing: -0.5px; }
+
+  /* "이 숫자는 어떻게 나왔나요?" 설명 박스 */
+  .explain-box {
+    margin-top: 16px;
+    background: var(--wash);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 15px 17px;
+  }
+  .explain-box h4 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-800);
+    margin-bottom: 7px;
+  }
+  .explain-box p {
+    font-size: 12px;
+    color: var(--ink-700);
+    line-height: 1.75;
+  }
+  .explain-box p + p { margin-top: 7px; }
+
   /* ===== 서브: 오늘의 운세 ===== */
   .fortune-card {
     margin-top: 18px;
@@ -538,7 +586,7 @@
       <!-- 메인: N년 적중률 -->
       <section>
         <div class="section-title">절기는 맞았을까</div>
-        <div class="section-sub">인천(112) 관측소 기준 실제 기상 데이터로 확인</div>
+        <div class="section-sub">인천(112) 관측소 · 절기 무렵 ±3일 실제 기상을 평년값과 비교</div>
 
         <div class="years-toggle" id="yearsToggle">
           <button type="button" data-years="10" class="active">10년</button>
@@ -565,6 +613,8 @@
 
           <div class="rate-note" id="rateNote"></div>
         </div>
+
+        <div class="explain-box" id="explainBox" hidden></div>
 
         <div class="status-box" id="mainStatus">불러오는 중…</div>
       </section>
@@ -608,34 +658,38 @@
 
   var STN_ID = "112"; // 인천 — 김포와 가장 가까운 ASOS 관측소
   var YEARS_BACK = 10; // 버튼으로 10/20/30 전환 가능 (아래 이벤트 리스너 참고)
+  var WINDOW_HALF = 3; // 절기 당일 ±N일(총 2N+1일) 평균을 그 해의 값으로 씀
+  var LATITUDE = 37.5; // 낮 길이 계산용 (인천 부근)
 
-  // 24절기 판정 기준표
-  // type: 'rain'(비) · 'cold'(추위) · 'hot'(더위) · 'thaw'(해빙/포근함) · 'observe'(판정 없이 참고만)
+  // 24절기 판정 기준표 — "평년 대비 편차" 방식
+  //   metric: "temp"(평균기온) | "rain"(강수량) | "daylength"(낮 길이 — 판정 없이 사실만)
+  //   direction: "above"(평년보다 높/많으면 적중) | "below"(평년보다 낮/적으면 적중)
+  //   char: 설명 박스에 쓰는 한 줄 성격 규정 / desc: 헤더 부제
   var JEOLGI_RULE = {
-    "소한": { type: "cold", desc: "한 해 중 가장 추운 시기로 통합니다" },
-    "대한": { type: "cold", desc: "혹독한 추위가 절정에 이르는 시기입니다" },
-    "입춘": { type: "thaw", desc: "봄의 기운이 시작된다고 여기는 절기입니다" },
-    "우수": { type: "rain", desc: "눈 대신 비가 내리기 시작한다는 절기입니다" },
-    "경칩": { type: "thaw", desc: "겨울잠 자던 벌레가 깨어난다는 절기입니다" },
-    "춘분": { type: "observe", desc: "낮과 밤의 길이가 같아지는 날입니다" },
-    "청명": { type: "observe", desc: "날씨가 맑고 밝아진다는 절기입니다" },
-    "곡우": { type: "rain", desc: "농사에 필요한 비가 내린다는 절기입니다" },
-    "입하": { type: "hot", desc: "여름 기운이 시작된다고 여기는 절기입니다" },
-    "소만": { type: "hot", desc: "본격적인 더위가 다가오는 시기입니다" },
-    "망종": { type: "rain", desc: "보리 수확과 모내기, 장마철이 가까운 시기입니다" },
-    "하지": { type: "hot", desc: "낮이 가장 긴 날로, 더위가 본격화됩니다" },
-    "소서": { type: "hot", desc: "더위가 본격적으로 시작된다는 절기입니다" },
-    "대서": { type: "hot", desc: "한 해 중 가장 더운 시기로 통합니다" },
-    "입추": { type: "observe", desc: "가을 기운이 시작된다고 여기는 절기입니다" },
-    "처서": { type: "observe", desc: "더위가 한풀 꺾인다는 절기입니다" },
-    "백로": { type: "observe", desc: "이슬이 맺히기 시작한다는 절기입니다" },
-    "추분": { type: "observe", desc: "낮과 밤의 길이가 같아지는 날입니다" },
-    "한로": { type: "cold", desc: "찬 이슬이 맺히기 시작한다는 절기입니다" },
-    "상강": { type: "cold", desc: "서리가 내리기 시작한다는 절기입니다" },
-    "입동": { type: "cold", desc: "겨울 기운이 시작된다고 여기는 절기입니다" },
-    "소설": { type: "cold", desc: "첫눈이 내리기 시작한다는 절기입니다" },
-    "대설": { type: "cold", desc: "눈이 많이 내린다는 절기입니다" },
-    "동지": { type: "cold", desc: "밤이 가장 긴 날로, 추위가 깊어집니다" }
+    "소한": { metric: "temp", direction: "below", char: "한 해 중 가장 추운 절기", desc: "한 해 중 가장 추운 시기로 통합니다" },
+    "대한": { metric: "temp", direction: "below", char: "추위가 절정에 이르는 절기", desc: "혹독한 추위가 절정에 이르는 시기입니다" },
+    "입춘": { metric: "temp", direction: "above", char: "봄 기운이 시작되는 절기", desc: "봄의 기운이 시작된다고 여기는 절기입니다" },
+    "우수": { metric: "rain", direction: "above", char: "눈 대신 비가 내리기 시작하는 절기", desc: "눈 대신 비가 내리기 시작한다는 절기입니다" },
+    "경칩": { metric: "temp", direction: "above", char: "벌레가 깨어날 만큼 포근해지는 절기", desc: "겨울잠 자던 벌레가 깨어난다는 절기입니다" },
+    "춘분": { metric: "daylength", char: "낮과 밤의 길이가 같아지는 날", daylengthNote: "낮과 밤의 길이가 거의 같아요", desc: "낮과 밤의 길이가 같아지는 날입니다" },
+    "청명": { metric: "rain", direction: "below", char: "날씨가 맑고 건조해지는 절기", desc: "날씨가 맑고 밝아진다는 절기입니다" },
+    "곡우": { metric: "rain", direction: "above", char: "농사에 필요한 봄비가 내리는 절기", desc: "농사에 필요한 비가 내린다는 절기입니다" },
+    "입하": { metric: "temp", direction: "above", char: "여름 기운이 시작되는 절기", desc: "여름 기운이 시작된다고 여기는 절기입니다" },
+    "소만": { metric: "temp", direction: "above", char: "본격적인 더위가 다가오는 절기", desc: "본격적인 더위가 다가오는 시기입니다" },
+    "망종": { metric: "rain", direction: "above", char: "장마가 가까워 비가 늘어나는 절기", desc: "보리 수확과 모내기, 장마철이 가까운 시기입니다" },
+    "하지": { metric: "daylength", char: "일 년 중 낮이 가장 긴 날", daylengthNote: "일 년 중 낮이 가장 긴 날이에요", desc: "낮이 가장 긴 날로, 더위가 본격화됩니다" },
+    "소서": { metric: "temp", direction: "above", char: "더위가 본격적으로 시작되는 절기", desc: "더위가 본격적으로 시작된다는 절기입니다" },
+    "대서": { metric: "temp", direction: "above", char: "한 해 중 가장 더운 절기", desc: "한 해 중 가장 더운 시기로 통합니다" },
+    "입추": { metric: "temp", direction: "below", char: "가을 기운이 들며 선선해지는 절기", desc: "가을 기운이 시작된다고 여기는 절기입니다" },
+    "처서": { metric: "temp", direction: "below", char: "더위가 한풀 꺾이는 절기", desc: "더위가 한풀 꺾인다는 절기입니다" },
+    "백로": { metric: "temp", direction: "below", char: "이슬이 맺힐 만큼 서늘해지는 절기", desc: "이슬이 맺히기 시작한다는 절기입니다" },
+    "추분": { metric: "daylength", char: "낮과 밤의 길이가 같아지는 날", daylengthNote: "낮과 밤의 길이가 거의 같아요", desc: "낮과 밤의 길이가 같아지는 날입니다" },
+    "한로": { metric: "temp", direction: "below", char: "찬 이슬이 맺힐 만큼 추워지는 절기", desc: "찬 이슬이 맺히기 시작한다는 절기입니다" },
+    "상강": { metric: "temp", direction: "below", char: "서리가 내리기 시작하는 절기", desc: "서리가 내리기 시작한다는 절기입니다" },
+    "입동": { metric: "temp", direction: "below", char: "겨울 기운이 시작되는 절기", desc: "겨울 기운이 시작된다고 여기는 절기입니다" },
+    "소설": { metric: "temp", direction: "below", char: "첫눈이 내릴 만큼 추워지는 절기", desc: "첫눈이 내리기 시작한다는 절기입니다" },
+    "대설": { metric: "rain", direction: "above", char: "눈이 많이 내린다는 절기", desc: "눈이 많이 내린다는 절기입니다" },
+    "동지": { metric: "daylength", char: "일 년 중 밤이 가장 긴 날", daylengthNote: "일 년 중 낮이 가장 짧은 날이에요", desc: "밤이 가장 긴 날로, 추위가 깊어집니다" }
   };
 
   // 절기별 계절 그라디언트 (헤더 배경) — light: 밝은 배경이라 어두운 글자를 써야 하는지 여부
@@ -684,6 +738,50 @@
       parseInt(ymd.slice(4, 6), 10) - 1,
       parseInt(ymd.slice(6, 8), 10)
     );
+  }
+
+  // "20260420" 에서 delta 일 이동한 "YYYYMMDD"
+  function shiftYmd(ymd, delta) {
+    var d = ymdToDate(ymd);
+    d.setDate(d.getDate() + delta);
+    return "" + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate());
+  }
+
+  function f1(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  // 한글 조사 — 끝 글자 받침 유무
+  function hasJong(s) {
+    if (!s) return false;
+    var c = s.charCodeAt(s.length - 1);
+    if (c < 0xAC00 || c > 0xD7A3) return false;
+    return (c - 0xAC00) % 28 !== 0;
+  }
+  function eun(s) { return s + (hasJong(s) ? "은" : "는"); }
+  function yeyo(s) { return "'" + s + "'" + (hasJong(s) ? "이에요" : "예요"); }
+
+  // 낮 길이(시:분) — 위도 LATITUDE, 표준 일출·일몰(태양고도 -0.833°)
+  function daylengthHM(y, m, d) {
+    var lat = LATITUDE * Math.PI / 180;
+    var n = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1)) / 86400000); // 0부터
+    var g = 2 * Math.PI / 365 * n;
+    var decl = 0.006918
+      - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g)
+      - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g)
+      - 0.002697 * Math.cos(3 * g) + 0.001480 * Math.sin(3 * g); // 태양 적위(라디안)
+    var cosH = (Math.sin(-0.833 * Math.PI / 180) - Math.sin(lat) * Math.sin(decl))
+             / (Math.cos(lat) * Math.cos(decl));
+    cosH = Math.max(-1, Math.min(1, cosH));
+    var hours = 24 * Math.acos(cosH) / Math.PI;
+    var h = Math.floor(hours);
+    var mi = Math.round((hours - h) * 60);
+    if (mi === 60) { h += 1; mi = 0; }
+    return { h: h, mi: mi, hours: hours };
   }
 
   // 동시 요청 수 제한 — data.go.kr 는 한꺼번에 몰리면 느려지고 타임아웃이 잦다.
@@ -749,26 +847,33 @@
     });
   }
 
-  // ASOS 일자료 — 특정 날짜 하루치
-  function getAsosDay(ymd) {
+  // ASOS 일자료 — 절기 당일 ±half일 창(총 2·half+1일)을 한 번의 호출로
+  //   avgTa: 창 기간 일평균기온의 평균 (기온 없는 날은 제외)
+  //   sumRn: 창 기간 총 강수량 (빈 값 = 그날 강수 0으로 처리)
+  function getAsosWindow(centerYmd, half) {
     var url = PROXY_BASE + "/asos"
       + "?dataCd=ASOS&dateCd=DAY"
       + "&stnIds=" + STN_ID
-      + "&startDt=" + ymd + "&endDt=" + ymd
-      + "&numOfRows=10&pageNo=1"
+      + "&startDt=" + shiftYmd(centerYmd, -half)
+      + "&endDt=" + shiftYmd(centerYmd, half)
+      + "&numOfRows=" + (2 * half + 5) + "&pageNo=1"
       + "&_type=xml";
     return fetchXml(url).then(function (xml) {
-      var item = xml.querySelector("item");
-      if (!item) return null;
-      function val(tag) {
-        var el = item.querySelector(tag);
-        return el ? el.textContent.trim() : "";
-      }
+      var items = Array.prototype.slice.call(xml.querySelectorAll("item"));
+      if (!items.length) return null;
+      var taSum = 0, taN = 0, rnTotal = 0, dayN = 0;
+      items.forEach(function (item) {
+        var taEl = item.querySelector("avgTa");
+        var rnEl = item.querySelector("sumRn");
+        var ta = taEl ? taEl.textContent.trim() : "";
+        var rn = rnEl ? rnEl.textContent.trim() : "";
+        if (ta !== "") { taSum += parseFloat(ta); taN += 1; }
+        rnTotal += (rn === "" ? 0 : parseFloat(rn)); // 빈 값 = 강수 없음
+        dayN += 1;
+      });
       return {
-        avgTa: val("avgTa") === "" ? null : parseFloat(val("avgTa")),
-        minTa: val("minTa") === "" ? null : parseFloat(val("minTa")),
-        maxTa: val("maxTa") === "" ? null : parseFloat(val("maxTa")),
-        sumRn: val("sumRn") === "" ? 0 : parseFloat(val("sumRn")) // 빈 값 = 강수 없음
+        avgTa: taN ? taSum / taN : null,
+        sumRn: dayN ? rnTotal : null
       };
     });
   }
@@ -794,34 +899,24 @@
   }
 
   // ===================================================================
-  // 3. 판정 로직
+  // 3. 판정 로직 — 평년 대비 편차
   // ===================================================================
-  function judge(type, weather) {
-    if (!weather) return null; // 데이터 없음 = 판정 불가
-    switch (type) {
-      case "rain":
-        return weather.sumRn > 0;
-      case "cold":
-        return weather.avgTa !== null && weather.avgTa <= 5;
-      case "hot":
-        return weather.avgTa !== null && weather.avgTa >= 25;
-      case "thaw":
-        return weather.minTa !== null && weather.minTa > 0;
-      default:
-        return null; // observe 타입은 적중률 집계에서 제외
-    }
-  }
-
-  // 유형별로 "실제 수치" 모드에서 어떤 값을 보여줄지
-  function getValueInfo(type, weather) {
-    if (!weather) return null;
-    switch (type) {
-      case "rain": return { value: weather.sumRn, unit: "mm", label: "강수량" };
-      case "cold": return { value: weather.avgTa, unit: "℃", label: "평균기온" };
-      case "hot": return { value: weather.avgTa, unit: "℃", label: "평균기온" };
-      case "thaw": return { value: weather.minTa, unit: "℃", label: "최저기온" };
-      default: return { value: weather.avgTa, unit: "℃", label: "평균기온(참고)" };
-    }
+  // perYear: [{ year, date, value }]  (value 는 그 해 창 기간 값, 없으면 null)
+  // 평년값 = 유효한 value 들의 평균. 각 해가 평년값 대비 direction 방향이면 적중.
+  function computeRates(rule, perYear) {
+    var nums = perYear.filter(function (r) { return r.value != null && !isNaN(r.value); });
+    var normal = nums.length
+      ? nums.reduce(function (s, r) { return s + r.value; }, 0) / nums.length
+      : null;
+    var results = perYear.map(function (r) {
+      var v = (r.value == null || isNaN(r.value)) ? null : r.value;
+      var hit = null;
+      if (normal != null && v != null) {
+        hit = rule.direction === "above" ? (v > normal) : (v < normal);
+      }
+      return { year: r.year, date: r.date, value: v, hit: hit };
+    });
+    return { normal: normal, results: results };
   }
 
   // 절기별 감성 운세 멘트
@@ -875,15 +970,11 @@
   // ===================================================================
   // 4. 렌더링
   // ===================================================================
-  var chartState = { results: [], type: "observe", mode: "judge" };
+  // rule: 선택 절기의 JEOLGI_RULE, normal: 평년값(숫자·null), results: computeRates 결과
+  var chartState = { results: [], rule: null, mode: "judge", normal: null };
 
-  var NOTE_MAP = {
-    rain: "판정 기준: 그날 강수량이 0mm보다 크면 적중으로 봤어요.",
-    cold: "판정 기준: 그날 평균기온이 5℃ 이하이면 적중으로 봤어요.",
-    hot: "판정 기준: 그날 평균기온이 25℃ 이상이면 적중으로 봤어요.",
-    thaw: "판정 기준: 그날 최저기온이 0℃보다 높으면 적중으로 봤어요.",
-    observe: "이 절기는 계절의 전환점을 뜻할 뿐, 뚜렷한 날씨 특성이 정해져 있지 않아 적중률을 매기지 않았어요."
-  };
+  function metricUnit(rule) { return rule.metric === "temp" ? "℃" : "mm"; }
+  function metricLabel(rule) { return rule.metric === "temp" ? "평균기온" : "강수량"; }
 
   function renderToday(name, ymd, rule) {
     var d = ymdToDate(ymd);
@@ -907,49 +998,68 @@
     }
   }
 
-  function renderRate(results, type) {
-    chartState.results = results;
-    chartState.type = type;
+  // 낮 길이 절기(춘분·하지·추분·동지): 적중률 대신 그날 낮 길이만
+  function renderDaylength(name, ymd, rule) {
+    var d = ymdToDate(ymd);
+    var dl = daylengthHM(d.getFullYear(), d.getMonth() + 1, d.getDate());
 
-    var valid = results.filter(function (r) { return r.hit !== null; });
+    chartState = { results: [], rule: rule, mode: chartState.mode || "judge", normal: null };
+
+    document.querySelector(".rate-card").classList.add("is-daylength");
+    document.getElementById("yearsToggle").hidden = true; // 낮 길이는 기간 무관
+    var rn = document.getElementById("rateNum");
+    rn.className = "rate-num daylength";
+    rn.textContent = dl.h + "시간 " + dl.mi + "분";
+
+    document.getElementById("rateLabel").textContent = "이날 낮 길이 (인천 부근 · 위도 " + LATITUDE + "°)";
+    document.getElementById("rateFraction").textContent = rule.daylengthNote || "";
+    document.getElementById("rateNote").textContent =
+      "낮 길이는 날씨가 아니라 태양의 위치로 정해져서, 적중률 대신 일출·일몰 공식으로 실제 낮 길이만 계산했어요. 실제 값과 1~2분 차이가 있을 수 있어요.";
+
+    renderChart(); // 막대·라벨·상세 비우기 (CSS 로 숨김)
+    renderExplain(rule, name);
+  }
+
+  function renderRate(info, rule, name) {
+    document.querySelector(".rate-card").classList.remove("is-daylength");
+    document.getElementById("yearsToggle").hidden = false;
+    var rn = document.getElementById("rateNum");
+    rn.className = "rate-num";
+
+    chartState = { results: info.results, rule: rule, mode: chartState.mode || "judge", normal: info.normal };
+
+    var valid = info.results.filter(function (r) { return r.hit !== null; });
     var hits = valid.filter(function (r) { return r.hit; }).length;
-    var pct = valid.length ? Math.round((hits / valid.length) * 100) : 0;
 
-    var rateLabel;
-    if (type === "observe") {
-      rateLabel = "이 절기는 판정 기준이 없는 절기예요";
-    } else if (valid.length === 0) {
-      rateLabel = "기상 데이터를 불러오지 못했어요";
+    if (!valid.length || info.normal == null) {
+      rn.innerHTML = "—";
+      document.getElementById("rateLabel").textContent = "기상 데이터를 불러오지 못했어요";
+      document.getElementById("rateFraction").textContent = "";
+      document.getElementById("rateNote").textContent = "";
     } else {
-      rateLabel = YEARS_BACK + "년 중 실제로 절기다웠던 비율";
+      var pct = Math.round((hits / valid.length) * 100);
+      rn.innerHTML = pct + "<span>%</span>";
+      document.getElementById("rateLabel").textContent = YEARS_BACK + "년 중 '그 절기다웠던' 해의 비율";
+      document.getElementById("rateFraction").textContent = valid.length + "개년 중 " + hits + "개년";
+
+      var dirWord = rule.metric === "temp"
+        ? (rule.direction === "below" ? "낮았던" : "높았던")
+        : (rule.direction === "below" ? "적었던" : "많았던");
+      var kindWord = rule.metric === "temp" ? "평균기온이" : "강수량이";
+      document.getElementById("rateNote").textContent =
+        "판정 기준: " + name + " 무렵(±" + WINDOW_HALF + "일) " + kindWord + " 평년값("
+        + f1(info.normal) + metricUnit(rule) + ")보다 " + dirWord + " 해를 '그 절기다웠어요'로 봤어요.";
     }
 
-    // 판정이 안 되는 경우(관측형 절기 / 데이터 없음)는 "0%" 대신 "—"
-    document.getElementById("rateNum").innerHTML =
-      (type === "observe" || valid.length === 0) ? "—" : (pct + "<span>%</span>");
-    document.getElementById("rateLabel").textContent = rateLabel;
-    document.getElementById("rateFraction").textContent =
-      valid.length ? valid.length + "개년 중 " + hits + "개년 적중" : "";
-    document.getElementById("rateNote").textContent = NOTE_MAP[type] || "";
-
     renderChart();
+    renderExplain(rule, name);
   }
 
   function renderChart() {
     var results = chartState.results;
-    var type = chartState.type;
+    var rule = chartState.rule;
     var mode = chartState.mode;
-    var vi = type === "rain" ? { unit: "mm", label: "강수량" }
-      : type === "thaw" ? { unit: "℃", label: "최저기온" }
-      : { unit: "℃", label: "평균기온" };
-
-    var values = results.map(function (r) {
-      if (!r.weather) return null;
-      var info = getValueInfo(type, r.weather);
-      return info ? info.value : null;
-    });
-    var numeric = values.filter(function (v) { return v !== null && !isNaN(v); });
-    var maxAbs = numeric.length ? Math.max.apply(null, numeric.map(Math.abs), 0.1) : 1;
+    var normal = chartState.normal;
 
     var chart = document.getElementById("yearChart");
     var labels = document.getElementById("yearLabels");
@@ -960,20 +1070,48 @@
     detail.textContent = "막대를 눌러 그해의 실제 수치를 확인해보세요";
     detail.className = "chart-detail placeholder";
 
-    results.forEach(function (r, idx) {
+    if (!rule || rule.metric === "daylength" || !results.length) return;
+
+    var unit = metricUnit(rule);
+    var mlabel = metricLabel(rule);
+
+    var nums = results.map(function (r) { return r.value; })
+      .filter(function (v) { return v != null && !isNaN(v); });
+    var lo = 0, hi = 1;
+    if (nums.length) {
+      lo = Math.min.apply(null, nums);
+      hi = Math.max.apply(null, nums);
+      if (normal != null) { lo = Math.min(lo, normal); hi = Math.max(hi, normal); }
+      if (hi === lo) hi = lo + 1;
+      var pad = (hi - lo) * 0.08;
+      lo -= pad; hi += pad;
+    }
+    function scalePct(v) { return 6 + (v - lo) / (hi - lo) * 92; }
+
+    // 실제 수치 모드에서 평년값 기준선
+    if (mode === "value" && normal != null) {
+      var line = document.createElement("div");
+      line.className = "normal-line";
+      line.style.bottom = scalePct(normal).toFixed(1) + "%";
+      var tag = document.createElement("span");
+      tag.textContent = "평년 " + f1(normal) + unit;
+      line.appendChild(tag);
+      chart.appendChild(line);
+    }
+
+    results.forEach(function (r) {
       var wrap = document.createElement("div");
       wrap.className = "year-bar-wrap";
 
       var bar = document.createElement("div");
-      var val = values[idx];
+      var v = r.value;
 
       if (mode === "judge") {
         bar.className = "year-mark " + (r.hit === true ? "hit" : r.hit === false ? "miss" : "");
         bar.style.height = r.hit === null ? "6px" : (r.hit ? "100%" : "34%");
       } else {
         bar.className = "year-mark value";
-        var h = (val === null || isNaN(val)) ? 6 : Math.max(6, Math.round((Math.abs(val) / maxAbs) * 100));
-        bar.style.height = h + "%";
+        bar.style.height = (v == null || isNaN(v)) ? "6px" : scalePct(v).toFixed(1) + "%";
       }
 
       wrap.appendChild(bar);
@@ -991,20 +1129,52 @@
         wrap.classList.add("active");
 
         var dateStr = r.date ? (r.date.slice(0, 4) + "." + r.date.slice(4, 6) + "." + r.date.slice(6, 8)) : "-";
-        var valText = (val === null || val === undefined || isNaN(val)) ? "데이터 없음" : (val + vi.unit);
-        var hitLabel = r.hit === true ? "적중" : r.hit === false ? "불일치" : "참고";
+        var valText = (v == null || isNaN(v)) ? "데이터 없음" : (f1(v) + unit);
+        var deltaText = "";
+        if (v != null && !isNaN(v) && normal != null) {
+          var dd = v - normal;
+          deltaText = " · 평년 " + (dd >= 0 ? "+" : "") + f1(dd) + unit;
+        }
+        var hitLabel = r.hit === true ? "그 절기다웠어요" : r.hit === false ? "예년과 달랐어요" : "참고";
         var hitClass = r.hit === true ? "hit" : r.hit === false ? "miss" : "";
 
         detail.className = "chart-detail";
         detail.innerHTML =
           '<span class="cd-year">' + r.year + "년 (" + dateStr + ")</span> · " +
-          vi.label + " " + valText +
+          mlabel + " " + valText + deltaText +
           '<span class="cd-tag ' + hitClass + '">' + hitLabel + "</span>";
       }
 
       wrap.addEventListener("mouseenter", showDetail);
       wrap.addEventListener("click", showDetail);
     });
+  }
+
+  // "이 숫자는 어떻게 나왔나요?" 설명 박스 — 지표에 맞게 문구 자동 전환
+  function renderExplain(rule, name) {
+    var box = document.getElementById("explainBox");
+    var p1, p2 = "";
+
+    if (rule.metric === "daylength") {
+      p1 = eun(name) + " " + yeyo(rule.char)
+        + ". 이건 날씨가 아니라 태양의 위치로 정해지는 날이라, 적중률 대신 그날 실제 낮 길이만 계산해서 보여드려요. "
+        + "(인천 부근 위도 " + LATITUDE + "°, 일출·일몰 공식)";
+    } else {
+      var kind = rule.metric === "temp" ? "평균기온" : "강수량";
+      var more = rule.metric === "temp"
+        ? (rule.direction === "above" ? "더 따뜻했으면" : "더 추웠으면")
+        : (rule.direction === "above" ? "비가 더 많았으면" : "비가 더 적었으면");
+      p1 = eun(name) + " " + yeyo(rule.char) + ". 최근 " + YEARS_BACK + "년간 " + name
+        + " 무렵(±" + WINDOW_HALF + "일)의 실제 " + kind
+        + "을 모아 평년값을 구하고, 각 해가 이보다 " + more + " '그 절기다웠어요', 아니면 '예년과 달랐어요'로 봤어요.";
+      p2 = "'평년값'은 기상청도 최근 30년 평균으로 계산해요. 위의 10·20·30년 버튼으로 그 기준 기간을 바꿀 수 있는데, "
+        + "기간이 바뀌면 평년값도 함께 움직여서 같은 해의 판정이 달라지기도 해요. 직접 바꿔가며 비교해보세요.";
+    }
+
+    box.innerHTML = "<h4>이 " + eun(rule.metric === "daylength" ? "값" : "숫자") + " 어떻게 나왔나요?</h4>"
+      + "<p>" + escapeHtml(p1) + "</p>"
+      + (p2 ? "<p>" + escapeHtml(p2) + "</p>" : "");
+    box.hidden = false;
   }
 
   function renderFortune(jeolgiName, lunar) {
@@ -1081,39 +1251,21 @@
         } else {
           today = findTodayJeolgi(items, refDate);
         }
-        var rule = JEOLGI_RULE[today.name] || { type: "observe", desc: "" };
+        var rule = JEOLGI_RULE[today.name] || { metric: "daylength", char: today.name, daylengthNote: "", desc: "" };
         renderToday(today.name, today.date, rule);
 
-        // 2) 최근 N개년 같은 절기 날짜 수집
-        setStatus(mainStatus, "최근 " + YEARS_BACK + "년간 " + today.name + " 날짜를 확인하는 중… (API " + YEARS_BACK + "회 호출)");
-        var years = [];
-        for (var i = 1; i <= YEARS_BACK; i++) years.push(t.y - i);
-
-        return mapLimit(years, 5, function (yr) { return get24Divisions(yr); }).then(function (yearsData) {
+        var mainWork;
+        if (rule.metric === "daylength") {
+          // 낮 길이 절기: 기상 데이터 조회 없이 공식으로 계산
           checkStale();
-          var targets = yearsData.map(function (items, idx) {
-            var match = items.filter(function (it) { return it.name === today.name; })[0];
-            return { year: t.y - (idx + 1), date: match ? match.date : null };
-          }).filter(function (x) { return x.date; });
+          renderDaylength(today.name, today.date, rule);
+          setStatus(mainStatus, "낮 길이 계산 완료 (" + today.name + " · 위도 " + LATITUDE + "°) — 기상 데이터 조회 없이 공식으로");
+          mainWork = Promise.resolve();
+        } else {
+          mainWork = loadRates(today, rule, t, mainStatus, startedAt, checkStale);
+        }
 
-          // 3) 각 날짜의 실제 기상 조회
-          checkStale();
-          setStatus(mainStatus, "인천(112) 관측소의 과거 기상 데이터를 불러오는 중… (API " + targets.length + "회 호출)");
-          return mapLimit(targets, 5, function (t2) {
-            return getAsosDay(t2.date).then(function (w) {
-              return { year: t2.year, date: t2.date, hit: judge(rule.type, w), weather: w };
-            });
-          }).then(function (results) {
-            checkStale();
-            results.sort(function (a, b) { return a.year - b.year; });
-            renderRate(results, rule.type);
-            var elapsedSec = ((performance.now() - startedAt) / 1000).toFixed(1);
-            var totalCalls = 1 + YEARS_BACK + targets.length + 1; // 오늘절기1 + 연도별절기N + 기상N + 음양력1
-            setStatus(mainStatus,
-              "불러오기 완료 (" + today.name + " 기준, 인천 112 관측소) · " + YEARS_BACK + "년 기준 · "
-              + "API " + totalCalls + "회 호출 · " + elapsedSec + "초 소요");
-          });
-        }).then(function () {
+        return mainWork.then(function () {
           // 4) 오늘의 운세 (서브)
           checkStale();
           return getLunCal(t.y, t.m, t.day).then(function (lunar) {
@@ -1129,6 +1281,41 @@
       .then(function () {
         if (myToken === runToken) setYearsToggleDisabled(false);
       });
+  }
+
+  // 기온/강수 절기: 최근 N년 창 기간 데이터를 모아 평년값 → 편차 판정
+  function loadRates(today, rule, t, mainStatus, startedAt, checkStale) {
+    setStatus(mainStatus, "최근 " + YEARS_BACK + "년간 " + today.name + " 날짜를 확인하는 중…");
+    var years = [];
+    for (var i = 1; i <= YEARS_BACK; i++) years.push(t.y - i);
+
+    // 2) 최근 N개년의 같은 절기 날짜
+    return mapLimit(years, 5, function (yr) { return get24Divisions(yr); }).then(function (yearsData) {
+      checkStale();
+      var targets = yearsData.map(function (items, idx) {
+        var match = items.filter(function (it) { return it.name === today.name; })[0];
+        return { year: t.y - (idx + 1), date: match ? match.date : null };
+      }).filter(function (x) { return x.date; });
+
+      // 3) 각 해 절기 무렵 ±N일 창의 실제 기상
+      checkStale();
+      setStatus(mainStatus, "인천(112) 관측소 · " + today.name + " 무렵 ±" + WINDOW_HALF + "일 기상을 불러오는 중… (API " + targets.length + "회)");
+      return mapLimit(targets, 5, function (t2) {
+        return getAsosWindow(t2.date, WINDOW_HALF).then(function (w) {
+          var value = w ? (rule.metric === "temp" ? w.avgTa : w.sumRn) : null;
+          return { year: t2.year, date: t2.date, value: value };
+        });
+      }).then(function (perYear) {
+        checkStale();
+        perYear.sort(function (a, b) { return a.year - b.year; });
+        renderRate(computeRates(rule, perYear), rule, today.name);
+        var elapsedSec = ((performance.now() - startedAt) / 1000).toFixed(1);
+        var totalCalls = 1 + YEARS_BACK + targets.length + 1; // 올해절기1 + 연도별절기N + 기상N + 음양력1
+        setStatus(mainStatus,
+          "불러오기 완료 (" + today.name + " · 인천 112 · ±" + WINDOW_HALF + "일 평균) · "
+          + YEARS_BACK + "년 평년값 기준 · API " + totalCalls + "회 · " + elapsedSec + "초");
+      });
+    });
   }
 
   // ===================================================================
